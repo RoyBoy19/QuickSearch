@@ -1,0 +1,17 @@
+{
+  "name": "quicksearch-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuickSearch browser UI with a deployable server-side web proxy.",
+  "main": "server.js",
+  "scripts": {
+    "open": "node --max-old-space-size=128 launcher.js",
+    "start": "node server.js",
+    "start:low": "node --max-old-space-size=128 launcher.js --no-open",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {}
+}

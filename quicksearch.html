@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickSearch Browser</title>
+    <style>
+        :root {
+            --chrome: #edf1f2;
+            --chrome-strong: #dbe4e5;
+            --surface: #ffffff;
+            --surface-soft: #f7f9f8;
+            --surface-raised: #ffffff;
+            --text: #15201e;
+            --muted: #66706d;
+            --faint: #8d9693;
+            --border: #cfd8d6;
+            --border-strong: #acb9b6;
+            --accent: #147c72;
+            --accent-strong: #0f665e;
+            --accent-soft: #dbf2ef;
+            --warn: #b45309;
+            --danger: #b42318;
+            --shadow: 0 14px 36px rgba(22, 31, 29, 0.14);
+            --focus: 0 0 0 3px rgba(20, 124, 114, 0.22);
+            color-scheme: light;
+        }
+
+        [data-theme="dark"] {
+            --chrome: #202626;
+            --chrome-strong: #141918;
+            --surface: #111514;
+            --surface-soft: #171d1c;
+            --surface-raised: #202625;
+            --text: #ecf3f1;
+            --muted: #aeb9b6;
+            --faint: #7f8b88;
+            --border: #333d3b;
+            --border-strong: #4a5653;
+            --accent: #5cc7bb;
+            --accent-strong: #8ddbd2;
+            --accent-soft: #163f3b;
+            --warn: #f4b35d;
+            --danger: #f97066;
+            --shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+            --focus: 0 0 0 3px rgba(92, 199, 187, 0.24);
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-width: 320px;
+            height: 100%;
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--surface);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            color: inherit;
+        }
+
+        svg {
+            display: block;
+        }
+
+        .browser-shell {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            height: 100%;
+            background: var(--surface);
+        }
+
+        .chrome {
+            position: relative;
+            z-index: 20;
+            background: linear-gradient(180deg, var(--chrome), var(--chrome-strong));
+            border-bottom: 1px solid var(--border-strong);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+        }
+
+        .tab-strip {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            height: 42px;
+            padding: 6px 10px 0;
+        }
+
+        .tabs {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            min-width: 0;
+            flex: 1;
+            height: 100%;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+
+        .tab {
+            display: grid;
+            grid-template-columns: 1fr 26px;
+            align-items: center;
+            min-width: 156px;
+            width: 228px;
+            max-width: 260px;
+            height: 34px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            background: color-mix(in srgb, var(--chrome) 76%, transparent);
+            color: var(--muted);
+            overflow: hidden;
+        }
+
+        .tab.active {
+            background: var(--surface);
+            border-color: var(--border);
+            color: var(--text);
+            box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.35) inset;
+        }
+
+        .tab-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            height: 100%;
+            padding: 0 8px 0 10px;
+            border: 0;
+            background: transparent;
+            cursor: default;
+            text-align: left;
+        }
+
+        .tab-title {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 13px;
+        }
+
+        .tab-icon,
+        .site-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            border-radius: 5px;
+            background: var(--accent-soft);
+            color: var(--accent-strong);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .tab-close {
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 4px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--faint);
+            cursor: pointer;
+        }
+
+        .tab-close:hover,
+        .tab-main:hover,
+        .icon-button:hover,
+        .menu-item:hover,
+        .suggestion:hover,
+        .panel-row:hover,
+        .shortcut:hover {
+            background: color-mix(in srgb, var(--accent-soft) 72%, transparent);
+        }
+
+        .tab-close:focus-visible,
+        .tab-main:focus-visible,
+        .icon-button:focus-visible,
+        .omnibox-input:focus-visible,
+        .start-input:focus-visible,
+        select:focus-visible,
+        .menu-item:focus-visible,
+        .suggestion:focus-visible,
+        .shortcut:focus-visible,
+        .panel-row:focus-visible {
+            outline: none;
+            box-shadow: var(--focus);
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: auto minmax(220px, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px 9px;
+        }
+
+        .nav-cluster,
+        .action-cluster {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon-button {
+            display: inline-grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .icon-button[disabled] {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .icon-button.active {
+            color: var(--accent-strong);
+            background: var(--accent-soft);
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .omnibox {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            min-width: 0;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface-raised);
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+        }
+
+        .omnibox:focus-within {
+            border-color: var(--accent);
+            box-shadow: var(--focus);
+        }
+
+        .security-chip {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transform: translateY(-50%);
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        .security-chip .icon {
+            width: 15px;
+            height: 15px;
+        }
+
+        .omnibox-input {
+            min-width: 0;
+            width: 100%;
+            height: 100%;
+            padding: 0 12px 0 40px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--text);
+            outline: none;
+        }
+
+        .engine-select {
+            width: 132px;
+            height: 30px;
+            margin-right: 4px;
+            padding: 0 10px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface-soft);
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .suggestions {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 40;
+            max-height: min(420px, calc(100vh - 170px));
+            overflow: auto;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+            box-shadow: var(--shadow);
+        }
+
+        .suggestions[hidden] {
+            display: none;
+        }
+
+        .suggestion {
+            display: grid;
+            grid-template-columns: 22px 1fr;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            min-height: 42px;
+            padding: 7px 10px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .suggestion.active {
+            background: var(--accent-soft);
+        }
+
+        .suggestion-title {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .suggestion-subtitle {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .content {
+            position: relative;
+            min-height: 0;
+            background: var(--surface);
+        }
+
+        .start-page,
+        .frame-page {
+            position: absolute;
+            inset: 0;
+        }
+
+        .start-page {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            overflow: auto;
+            padding: 40px 26px 28px;
+            background:
+                radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent-soft) 65%, transparent), transparent 34%),
+                linear-gradient(180deg, var(--surface-soft), var(--surface));
+        }
+
+        .start-page[hidden],
+        .frame-page[hidden] {
+            display: none;
+        }
+
+        .start-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: min(940px, 100%);
+            margin: 0 auto;
+            padding: 18px 0 32px;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), #c65f2a);
+            color: #ffffff;
+            box-shadow: 0 14px 28px rgba(20, 124, 114, 0.24);
+        }
+
+        .brand-word {
+            margin: 0;
+            font-size: 38px;
+            font-weight: 800;
+            letter-spacing: 0;
+            line-height: 1;
+        }
+
+        .brand-word span {
+            color: var(--accent-strong);
+        }
+
+        .clock-row {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            margin-bottom: 22px;
+            color: var(--muted);
+        }
+
+        .clock {
+            font-size: 34px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .date {
+            font-size: 14px;
+        }
+
+        .start-search {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            width: min(720px, 100%);
+            height: 54px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface-raised);
+            box-shadow: 0 16px 36px rgba(23, 32, 30, 0.12);
+        }
+
+        .start-search:focus-within {
+            border-color: var(--accent);
+            box-shadow: var(--focus), 0 16px 36px rgba(23, 32, 30, 0.12);
+        }
+
+        .start-input {
+            min-width: 0;
+            width: 100%;
+            height: 100%;
+            padding: 0 22px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--text);
+            font-size: 17px;
+            outline: none;
+        }
+
+        .start-search .icon-button {
+            width: 42px;
+            height: 42px;
+            margin-right: 6px;
+            background: var(--accent);
+            color: #ffffff;
+        }
+
+        .start-search .icon-button:hover {
+            background: var(--accent-strong);
+        }
+
+        .start-sections {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+            gap: 28px;
+            width: min(980px, 100%);
+            margin-top: 34px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(96px, 1fr));
+            gap: 10px;
+        }
+
+        .shortcut {
+            display: grid;
+            grid-template-rows: 34px auto;
+            gap: 8px;
+            justify-items: center;
+            min-height: 86px;
+            padding: 13px 8px 11px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+            color: var(--text);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .shortcut .site-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .shortcut span:last-child {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .recent-list,
+        .panel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .panel-row {
+            display: grid;
+            grid-template-columns: 22px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            min-height: 42px;
+            padding: 7px 8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .row-text {
+            min-width: 0;
+        }
+
+        .row-title {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .row-subtitle {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .empty-state {
+            padding: 18px 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .frame-page {
+            background: var(--surface);
+        }
+
+        .frame-stack,
+        .frame-stack iframe {
+            width: 100%;
+            height: 100%;
+        }
+
+        .frame-stack iframe {
+            display: none;
+            border: 0;
+            background: #ffffff;
+        }
+
+        .frame-stack iframe.active {
+            display: block;
+        }
+
+        .frame-notice {
+            position: absolute;
+            right: 18px;
+            bottom: 18px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: min(520px, calc(100% - 36px));
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+            box-shadow: var(--shadow);
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .frame-notice[hidden] {
+            display: none;
+        }
+
+        .loading-dot {
+            width: 10px;
+            height: 10px;
+            flex: 0 0 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 0.9s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.35; transform: scale(0.82); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .find-bar {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            z-index: 30;
+            display: grid;
+            grid-template-columns: minmax(160px, 240px) auto auto auto;
+            align-items: center;
+            gap: 4px;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+            box-shadow: var(--shadow);
+        }
+
+        .find-bar[hidden] {
+            display: none;
+        }
+
+        .find-input {
+            min-width: 0;
+            height: 32px;
+            padding: 0 10px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--surface-soft);
+            color: var(--text);
+            outline: none;
+        }
+
+        .side-panel,
+        .menu-popover {
+            position: fixed;
+            z-index: 45;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+            box-shadow: var(--shadow);
+        }
+
+        .side-panel {
+            top: 94px;
+            right: 12px;
+            bottom: 34px;
+            width: 376px;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+            transform: translateX(calc(100% + 30px));
+            transition: transform 160ms ease;
+        }
+
+        body.panel-open .side-panel {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 12px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 15px;
+        }
+
+        .panel-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-tab {
+            height: 34px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-soft);
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .panel-tab.active {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent-strong);
+            font-weight: 700;
+        }
+
+        .panel-content {
+            min-height: 0;
+            overflow: auto;
+            padding: 10px 12px 14px;
+        }
+
+        .menu-popover {
+            top: 84px;
+            right: 10px;
+            width: 226px;
+            padding: 6px;
+        }
+
+        .menu-popover[hidden] {
+            display: none;
+        }
+
+        .menu-item {
+            display: grid;
+            grid-template-columns: 22px 1fr;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 38px;
+            padding: 7px 9px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .menu-separator {
+            height: 1px;
+            margin: 6px;
+            background: var(--border);
+        }
+
+        .status-bar {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+            min-height: 25px;
+            padding: 3px 10px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-soft);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .status-url {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .kbd-hint {
+            color: var(--faint);
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 860px) {
+            .toolbar {
+                grid-template-columns: auto minmax(180px, 1fr);
+            }
+
+            .action-cluster {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+            }
+
+            .start-sections {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .tab-strip {
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+
+            .tab {
+                min-width: 142px;
+            }
+
+            .toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-cluster,
+            .action-cluster {
+                justify-content: space-between;
+            }
+
+            .engine-select {
+                width: 112px;
+            }
+
+            .start-page {
+                padding: 26px 14px 22px;
+            }
+
+            .brand-word {
+                font-size: 30px;
+            }
+
+            .clock-row {
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .shortcut-grid {
+                grid-template-columns: repeat(2, minmax(110px, 1fr));
+            }
+
+            .side-panel {
+                left: 8px;
+                right: 8px;
+                top: 126px;
+                width: auto;
+            }
+
+            .find-bar {
+                left: 10px;
+                right: 10px;
+                grid-template-columns: 1fr auto auto auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <svg class="visually-hidden" aria-hidden="true">
+        <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"></path></symbol>
+        <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"></path></symbol>
+        <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></symbol>
+        <symbol id="icon-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path></symbol>
+        <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></symbol>
+        <symbol id="icon-x" viewBox="0 0 24 24"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></symbol>
+        <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></symbol>
+        <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></symbol>
+        <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M12 3a14 14 0 0 0 0 18"></path></symbol>
+        <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z"></path></symbol>
+        <symbol id="icon-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></symbol>
+        <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4a8 8 0 1 0 11.5 11.5z"></path></symbol>
+        <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.9 4.9l1.4 1.4"></path><path d="M17.7 17.7l1.4 1.4"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M4.9 19.1l1.4-1.4"></path><path d="M17.7 6.3l1.4-1.4"></path></symbol>
+        <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></symbol>
+        <symbol id="icon-external" viewBox="0 0 24 24"><path d="M14 3h7v7"></path><path d="M21 3l-9 9"></path><path d="M5 7v14h14v-7"></path></symbol>
+        <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></symbol>
+        <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M4 16V6a2 2 0 0 1 2-2h10"></path></symbol>
+        <symbol id="icon-chevron-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"></path></symbol>
+        <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></symbol>
+    </svg>
+
+    <div class="browser-shell">
+        <header class="chrome">
+            <div class="tab-strip" role="tablist" aria-label="Browser tabs">
+                <div class="tabs" id="tabs"></div>
+                <button class="icon-button" id="newTabButton" type="button" title="New tab" aria-label="New tab">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+                </button>
+            </div>
+
+            <div class="toolbar">
+                <div class="nav-cluster">
+                    <button class="icon-button" id="backButton" type="button" title="Back" aria-label="Back">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+                    </button>
+                    <button class="icon-button" id="forwardButton" type="button" title="Forward" aria-label="Forward">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                    </button>
+                    <button class="icon-button" id="reloadButton" type="button" title="Reload" aria-label="Reload">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+                    </button>
+                    <button class="icon-button" id="homeButton" type="button" title="Home" aria-label="Home">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-home"></use></svg>
+                    </button>
+                </div>
+
+                <form class="omnibox" id="toolbarForm" autocomplete="off">
+                    <div class="security-chip" id="securityChip">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+                    </div>
+                    <label class="visually-hidden" for="addressInput">Search or enter address</label>
+                    <input class="omnibox-input" id="addressInput" type="text" placeholder="Search or enter address" spellcheck="false" autocomplete="off">
+                    <select class="engine-select" id="engineSelect" aria-label="Search engine">
+                        <option value="bing">Bing</option>
+                        <option value="duckduckgo">DuckDuckGo</option>
+                        <option value="google">Google</option>
+                    </select>
+                    <div class="suggestions" id="suggestions" hidden></div>
+                </form>
+
+                <div class="action-cluster">
+                    <button class="icon-button" id="bookmarkButton" type="button" title="Bookmark" aria-label="Bookmark">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-star"></use></svg>
+                    </button>
+                    <button class="icon-button" id="openButton" type="button" title="Open outside QuickSearch" aria-label="Open outside QuickSearch">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-external"></use></svg>
+                    </button>
+                    <button class="icon-button" id="panelButton" type="button" title="Bookmarks and history" aria-label="Bookmarks and history">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-panel"></use></svg>
+                    </button>
+                    <button class="icon-button" id="themeButton" type="button" title="Theme" aria-label="Theme">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-moon"></use></svg>
+                    </button>
+                    <button class="icon-button" id="menuButton" type="button" title="Menu" aria-label="Menu">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="content">
+            <section class="start-page" id="startPage">
+                <div class="start-center">
+                    <div class="brand-lockup">
+                        <div class="brand-mark" aria-hidden="true">
+                            <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+                        </div>
+                        <h1 class="brand-word">Quick<span>Search</span></h1>
+                    </div>
+
+                    <div class="clock-row">
+                        <div class="clock" id="clock">00:00</div>
+                        <div class="date" id="date">Loading</div>
+                    </div>
+
+                    <form class="start-search" id="startForm" autocomplete="off">
+                        <label class="visually-hidden" for="startInput">Search or enter address</label>
+                        <input class="start-input" id="startInput" type="text" placeholder="Search or enter address" spellcheck="false" autocomplete="off">
+                        <button class="icon-button" type="submit" title="Search" aria-label="Search">
+                            <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+                        </button>
+                    </form>
+
+                    <div class="start-sections">
+                        <section>
+                            <div class="section-heading">
+                                <h2>Top Sites</h2>
+                            </div>
+                            <div class="shortcut-grid" id="shortcutGrid"></div>
+                        </section>
+
+                        <section>
+                            <div class="section-heading">
+                                <h2>Recent</h2>
+                                <button class="icon-button" id="clearRecentButton" type="button" title="Clear recent" aria-label="Clear recent">
+                                    <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+                                </button>
+                            </div>
+                            <div class="recent-list" id="recentList"></div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            <section class="frame-page" id="framePage" hidden>
+                <div class="frame-stack" id="frameStack"></div>
+                <div class="frame-notice" id="frameNotice" hidden>
+                    <span class="loading-dot" aria-hidden="true"></span>
+                    <span id="frameNoticeText">Loading page</span>
+                    <button class="icon-button" id="noticeOpenButton" type="button" title="Open outside QuickSearch" aria-label="Open outside QuickSearch">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-external"></use></svg>
+                    </button>
+                </div>
+                <div class="find-bar" id="findBar" hidden>
+                    <label class="visually-hidden" for="findInput">Find</label>
+                    <input class="find-input" id="findInput" type="text" placeholder="Find">
+                    <button class="icon-button" id="findPreviousButton" type="button" title="Previous match" aria-label="Previous match">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-up"></use></svg>
+                    </button>
+                    <button class="icon-button" id="findNextButton" type="button" title="Next match" aria-label="Next match">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+                    </button>
+                    <button class="icon-button" id="findCloseButton" type="button" title="Close find" aria-label="Close find">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="status-bar">
+            <div class="status-url" id="statusText">Ready</div>
+            <div class="kbd-hint" id="tabCount">1 tab</div>
+        </footer>
+    </div>
+
+    <aside class="side-panel" id="sidePanel" aria-label="Bookmarks and history">
+        <div class="panel-header">
+            <h2 id="panelTitle">Bookmarks</h2>
+            <button class="icon-button" id="closePanelButton" type="button" title="Close panel" aria-label="Close panel">
+                <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            </button>
+        </div>
+        <div class="panel-tabs">
+            <button class="panel-tab active" type="button" data-panel-mode="bookmarks">Bookmarks</button>
+            <button class="panel-tab" type="button" data-panel-mode="history">History</button>
+        </div>
+        <div class="panel-content">
+            <div class="panel-list" id="panelList"></div>
+        </div>
+    </aside>
+
+    <div class="menu-popover" id="menuPopover" hidden>
+        <button class="menu-item" type="button" data-command="new-tab">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+            <span>New tab</span>
+        </button>
+        <button class="menu-item" type="button" data-command="duplicate-tab">
+            <svg class="icon" aria-hidden="true"><use href="#icon-copy"></use></svg>
+            <span>Duplicate tab</span>
+        </button>
+        <button class="menu-item" type="button" data-command="find">
+            <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+            <span>Find</span>
+        </button>
+        <div class="menu-separator"></div>
+        <button class="menu-item" type="button" data-command="bookmark">
+            <svg class="icon" aria-hidden="true"><use href="#icon-star"></use></svg>
+            <span>Bookmark page</span>
+        </button>
+        <button class="menu-item" type="button" data-command="copy-url">
+            <svg class="icon" aria-hidden="true"><use href="#icon-copy"></use></svg>
+            <span>Copy address</span>
+        </button>
+        <button class="menu-item" type="button" data-command="open-external">
+            <svg class="icon" aria-hidden="true"><use href="#icon-external"></use></svg>
+            <span>Open outside</span>
+        </button>
+        <div class="menu-separator"></div>
+        <button class="menu-item" type="button" data-command="clear-history">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            <span>Clear history</span>
+        </button>
+    </div>
+
+    <script>
+        (() => {
+            const STORAGE = {
+                bookmarks: "quicksearch.browser.bookmarks",
+                history: "quicksearch.browser.history",
+                settings: "quicksearch.browser.settings",
+                session: "quicksearch.browser.session"
+            };
+
+            const SEARCH_ENGINES = {
+                bing: {
+                    label: "Bing",
+                    buildUrl: query => "https://www.bing.com/search?q=" + encodeURIComponent(query)
+                },
+                duckduckgo: {
+                    label: "DuckDuckGo",
+                    buildUrl: query => "https://duckduckgo.com/?q=" + encodeURIComponent(query)
+                },
+                google: {
+                    label: "Google",
+                    buildUrl: query => "https://www.google.com/search?q=" + encodeURIComponent(query)
+                }
+            };
+
+            const SERVER_PROXY_AVAILABLE = window.location.protocol === "http:" || window.location.protocol === "https:";
+            const PROXY_ENDPOINT = "/proxy?url=";
+
+            const QUICK_LINKS = [
+                { title: "Mail", url: "https://mail.google.com" },
+                { title: "Docs", url: "https://docs.google.com" },
+                { title: "YouTube", url: "https://www.youtube.com" },
+                { title: "Maps", url: "https://maps.google.com" },
+                { title: "News", url: "https://www.bing.com/news" },
+                { title: "Drive", url: "https://drive.google.com" },
+                { title: "Calendar", url: "https://calendar.google.com" },
+                { title: "GitHub", url: "https://github.com" }
+            ];
+
+            const $ = selector => document.querySelector(selector);
+            const els = {
+                tabs: $("#tabs"),
+                newTabButton: $("#newTabButton"),
+                backButton: $("#backButton"),
+                forwardButton: $("#forwardButton"),
+                reloadButton: $("#reloadButton"),
+                homeButton: $("#homeButton"),
+                toolbarForm: $("#toolbarForm"),
+                addressInput: $("#addressInput"),
+                engineSelect: $("#engineSelect"),
+                suggestions: $("#suggestions"),
+                securityChip: $("#securityChip"),
+                bookmarkButton: $("#bookmarkButton"),
+                openButton: $("#openButton"),
+                panelButton: $("#panelButton"),
+                themeButton: $("#themeButton"),
+                menuButton: $("#menuButton"),
+                startPage: $("#startPage"),
+                framePage: $("#framePage"),
+                frameStack: $("#frameStack"),
+                frameNotice: $("#frameNotice"),
+                frameNoticeText: $("#frameNoticeText"),
+                noticeOpenButton: $("#noticeOpenButton"),
+                findBar: $("#findBar"),
+                findInput: $("#findInput"),
+                findPreviousButton: $("#findPreviousButton"),
+                findNextButton: $("#findNextButton"),
+                findCloseButton: $("#findCloseButton"),
+                clock: $("#clock"),
+                date: $("#date"),
+                startForm: $("#startForm"),
+                startInput: $("#startInput"),
+                shortcutGrid: $("#shortcutGrid"),
+                clearRecentButton: $("#clearRecentButton"),
+                recentList: $("#recentList"),
+                sidePanel: $("#sidePanel"),
+                panelTitle: $("#panelTitle"),
+                closePanelButton: $("#closePanelButton"),
+                panelList: $("#panelList"),
+                menuPopover: $("#menuPopover"),
+                statusText: $("#statusText"),
+                tabCount: $("#tabCount")
+            };
+
+            const state = {
+                tabs: [],
+                activeTabId: "",
+                panelMode: "bookmarks",
+                suggestionItems: [],
+                activeSuggestion: -1,
+                frameTimer: 0
+            };
+
+            let settings = loadJson(STORAGE.settings, { engine: "bing", theme: "light" });
+            let bookmarks = loadJson(STORAGE.bookmarks, QUICK_LINKS.slice(0, 4));
+            let historyItems = loadJson(STORAGE.history, []);
+
+            document.documentElement.dataset.theme = settings.theme || "light";
+            els.engineSelect.value = settings.engine || "bing";
+
+            function loadJson(key, fallback) {
+                try {
+                    const value = localStorage.getItem(key);
+                    return value ? JSON.parse(value) : fallback;
+                } catch (error) {
+                    return fallback;
+                }
+            }
+
+            function saveJson(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (error) {
+                    setStatus("Storage is unavailable");
+                }
+            }
+
+            function uid() {
+                return "tab-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            }
+
+            function activeTab() {
+                return state.tabs.find(tab => tab.id === state.activeTabId) || state.tabs[0];
+            }
+
+            function createTab(url = "", options = {}) {
+                const tab = {
+                    id: uid(),
+                    title: "New Tab",
+                    url: "",
+                    history: [],
+                    historyIndex: -1,
+                    loading: false
+                };
+                state.tabs.push(tab);
+                state.activeTabId = tab.id;
+                if (url) {
+                    navigate(tab.id, url, { replace: true });
+                } else {
+                    render();
+                }
+                if (options.focusAddress) {
+                    focusAddress();
+                }
+                return tab;
+            }
+
+            function closeTab(tabId) {
+                if (state.tabs.length === 1) {
+                    goHome(tabId);
+                    return;
+                }
+
+                const index = state.tabs.findIndex(tab => tab.id === tabId);
+                if (index === -1) return;
+
+                const [removed] = state.tabs.splice(index, 1);
+                const frame = document.getElementById(frameId(removed.id));
+                if (frame) frame.remove();
+
+                if (state.activeTabId === tabId) {
+                    const next = state.tabs[Math.max(0, index - 1)] || state.tabs[0];
+                    state.activeTabId = next.id;
+                }
+                render();
+            }
+
+            function selectTab(tabId) {
+                if (!state.tabs.some(tab => tab.id === tabId)) return;
+                state.activeTabId = tabId;
+                hideSuggestions();
+                render();
+            }
+
+            function duplicateTab() {
+                const tab = activeTab();
+                createTab(tab && tab.url ? tab.url : "");
+            }
+
+            function normalizeInput(input) {
+                const raw = input.trim();
+                if (!raw) return null;
+
+                if (/^(javascript|data|vbscript):/i.test(raw)) {
+                    return null;
+                }
+
+                if (/^about:(blank|newtab)$/i.test(raw)) {
+                    return { url: "", title: "New Tab", query: "", type: "home" };
+                }
+
+                if (/^[a-zA-Z]:[\\/]/.test(raw)) {
+                    const normalizedPath = raw.replace(/\\/g, "/");
+                    const parts = normalizedPath.split("/");
+                    const drive = parts.shift();
+                    const fileUrl = "file:///" + drive + "/" + parts.map(part => encodeURIComponent(part)).join("/");
+                    return { url: fileUrl, title: titleFromUrl(fileUrl), query: "", type: "url" };
+                }
+
+                if (/^file:\/\//i.test(raw) || /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(raw)) {
+                    return { url: raw, title: titleFromUrl(raw), query: "", type: "url" };
+                }
+
+                const noSpaces = !/\s/.test(raw);
+                const looksLikeHost = noSpaces && (
+                    raw.includes(".") ||
+                    /^localhost(:\d+)?$/i.test(raw) ||
+                    /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(raw) ||
+                    /^\[[0-9a-f:]+\](:\d+)?$/i.test(raw)
+                );
+
+                if (looksLikeHost) {
+                    const local = /^localhost(:\d+)?$/i.test(raw) || /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(raw);
+                    const url = (local ? "http://" : "https://") + raw;
+                    return { url, title: titleFromUrl(url), query: "", type: "url" };
+                }
+
+                const engine = SEARCH_ENGINES[settings.engine] || SEARCH_ENGINES.bing;
+                return {
+                    url: engine.buildUrl(raw),
+                    title: "Search: " + raw,
+                    query: raw,
+                    type: "search"
+                };
+            }
+
+            function navigate(tabId, input, options = {}) {
+                const tab = state.tabs.find(item => item.id === tabId);
+                const target = normalizeInput(input);
+                if (!tab || !target) {
+                    setStatus("Enter a valid address or search");
+                    return;
+                }
+
+                if (!target.url) {
+                    goHome(tab.id);
+                    return;
+                }
+
+                const entry = {
+                    url: target.url,
+                    title: target.title,
+                    time: Date.now()
+                };
+
+                if (options.replace && tab.historyIndex >= 0) {
+                    tab.history[tab.historyIndex] = entry;
+                } else {
+                    tab.history = tab.history.slice(0, tab.historyIndex + 1);
+                    tab.history.push(entry);
+                    tab.historyIndex = tab.history.length - 1;
+                }
+
+                tab.url = target.url;
+                tab.title = target.title;
+                tab.loading = true;
+                state.activeTabId = tab.id;
+                addHistory(entry);
+                hideSuggestions();
+                render();
+                loadFrame(tab);
+            }
+
+            function goHome(tabId = state.activeTabId) {
+                const tab = state.tabs.find(item => item.id === tabId);
+                if (!tab) return;
+                tab.url = "";
+                tab.title = "New Tab";
+                tab.loading = false;
+                hideFrameNotice();
+                render();
+            }
+
+            function goBack() {
+                const tab = activeTab();
+                if (!tab || tab.historyIndex <= 0) return;
+                tab.historyIndex -= 1;
+                applyHistoryEntry(tab);
+            }
+
+            function goForward() {
+                const tab = activeTab();
+                if (!tab || tab.historyIndex >= tab.history.length - 1) return;
+                tab.historyIndex += 1;
+                applyHistoryEntry(tab);
+            }
+
+            function applyHistoryEntry(tab) {
+                const entry = tab.history[tab.historyIndex];
+                if (!entry) return;
+                tab.url = entry.url;
+                tab.title = entry.title;
+                tab.loading = true;
+                addHistory(entry);
+                render();
+                loadFrame(tab);
+            }
+
+            function reloadActiveTab() {
+                const tab = activeTab();
+                if (!tab || !tab.url) {
+                    render();
+                    return;
+                }
+                tab.loading = true;
+                render();
+                loadFrame(tab, { reload: true });
+            }
+
+            function loadFrame(tab, options = {}) {
+                let frame = document.getElementById(frameId(tab.id));
+                if (!frame) {
+                    frame = document.createElement("iframe");
+                    frame.id = frameId(tab.id);
+                    frame.title = tab.title;
+                    frame.loading = "eager";
+                    frame.referrerPolicy = "no-referrer-when-downgrade";
+                    frame.addEventListener("load", () => {
+                        const current = state.tabs.find(item => frame.id === frameId(item.id));
+                        if (current) {
+                            syncTabFromFrame(current, frame);
+                            current.loading = false;
+                            setStatus(current.url || "Ready");
+                            if (current.id === state.activeTabId) {
+                                hideFrameNotice();
+                                renderTabs();
+                                renderNavigationState();
+                                renderRecent();
+                                renderPanel();
+                                saveSession();
+                            }
+                        }
+                    });
+                    els.frameStack.appendChild(frame);
+                }
+
+                frame.title = tab.title;
+                frame.src = options.reload ? "about:blank" : frameUrlFor(tab.url);
+                if (options.reload) {
+                    window.setTimeout(() => {
+                        frame.src = frameUrlFor(tab.url);
+                    }, 30);
+                }
+
+                showFrameNotice(SERVER_PROXY_AVAILABLE ? "Loading through proxy" : "Loading page");
+                window.clearTimeout(state.frameTimer);
+                state.frameTimer = window.setTimeout(() => {
+                    const active = activeTab();
+                    if (active && active.id === tab.id && active.loading) {
+                        showFrameNotice(SERVER_PROXY_AVAILABLE ? "Still loading through proxy" : "Some pages block embedded viewing");
+                    }
+                }, 1800);
+            }
+
+            function frameId(tabId) {
+                return "frame-" + tabId;
+            }
+
+            function frameUrlFor(url) {
+                if (!SERVER_PROXY_AVAILABLE || !/^https?:\/\//i.test(url)) {
+                    return url;
+                }
+                return PROXY_ENDPOINT + encodeURIComponent(url);
+            }
+
+            function proxiedTargetFromUrl(url) {
+                try {
+                    const parsed = new URL(url, window.location.href);
+                    if (parsed.origin === window.location.origin && parsed.pathname === "/proxy") {
+                        return parsed.searchParams.get("url") || "";
+                    }
+                } catch (error) {}
+                return "";
+            }
+
+            function syncTabFromFrame(tab, frame) {
+                let observedUrl = "";
+                let observedTitle = "";
+                try {
+                    observedUrl = frame.contentWindow.__QUICKSEARCH_PROXY__ && frame.contentWindow.__QUICKSEARCH_PROXY__.targetUrl
+                        ? frame.contentWindow.__QUICKSEARCH_PROXY__.targetUrl
+                        : proxiedTargetFromUrl(frame.contentWindow.location.href);
+                    observedTitle = frame.contentDocument && frame.contentDocument.title ? frame.contentDocument.title : "";
+                } catch (error) {}
+
+                if (!observedUrl) return;
+
+                const nextTitle = observedTitle || titleFromUrl(observedUrl);
+                if (tab.url === observedUrl) {
+                    tab.title = nextTitle;
+                    return;
+                }
+
+                tab.url = observedUrl;
+                tab.title = nextTitle;
+                const entry = { url: observedUrl, title: nextTitle, time: Date.now() };
+                const currentEntry = tab.history[tab.historyIndex];
+                if (!currentEntry || currentEntry.url !== observedUrl) {
+                    tab.history = tab.history.slice(0, tab.historyIndex + 1);
+                    tab.history.push(entry);
+                    tab.historyIndex = tab.history.length - 1;
+                    addHistory(entry);
+                }
+            }
+
+            function render() {
+                renderTabs();
+                renderNavigationState();
+                renderActiveSurface();
+                renderShortcuts();
+                renderRecent();
+                renderPanel();
+                renderThemeButton();
+                saveSession();
+            }
+
+            function renderTabs() {
+                els.tabs.textContent = "";
+                state.tabs.forEach(tab => {
+                    const tabEl = document.createElement("div");
+                    tabEl.className = "tab" + (tab.id === state.activeTabId ? " active" : "");
+                    tabEl.setAttribute("role", "tab");
+                    tabEl.setAttribute("aria-selected", tab.id === state.activeTabId ? "true" : "false");
+                    tabEl.dataset.tabId = tab.id;
+
+                    const main = document.createElement("button");
+                    main.className = "tab-main";
+                    main.type = "button";
+                    main.title = tab.title;
+                    main.dataset.tabAction = "select";
+                    main.dataset.tabId = tab.id;
+
+                    const icon = document.createElement("span");
+                    icon.className = "tab-icon";
+                    icon.textContent = initials(tab.title, tab.url);
+
+                    const title = document.createElement("span");
+                    title.className = "tab-title";
+                    title.textContent = tab.loading ? tab.title + "..." : tab.title;
+
+                    const close = document.createElement("button");
+                    close.className = "tab-close";
+                    close.type = "button";
+                    close.title = "Close tab";
+                    close.setAttribute("aria-label", "Close tab");
+                    close.dataset.tabAction = "close";
+                    close.dataset.tabId = tab.id;
+                    close.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>';
+
+                    main.append(icon, title);
+                    tabEl.append(main, close);
+                    els.tabs.appendChild(tabEl);
+                });
+            }
+
+            function renderNavigationState() {
+                const tab = activeTab();
+                const hasUrl = Boolean(tab && tab.url);
+                els.backButton.disabled = !(tab && tab.historyIndex > 0);
+                els.forwardButton.disabled = !(tab && tab.historyIndex < tab.history.length - 1);
+                els.reloadButton.disabled = !tab;
+                els.openButton.disabled = !hasUrl;
+                els.bookmarkButton.disabled = !hasUrl;
+                els.noticeOpenButton.disabled = !hasUrl;
+                els.bookmarkButton.classList.toggle("active", hasUrl && isBookmarked(tab.url));
+                els.panelButton.classList.toggle("active", document.body.classList.contains("panel-open"));
+                els.tabCount.textContent = state.tabs.length === 1 ? "1 tab" : state.tabs.length + " tabs";
+
+                if (tab && document.activeElement !== els.addressInput) {
+                    els.addressInput.value = tab.url || "";
+                }
+
+                const chipUse = els.securityChip.querySelector("use");
+                if (!tab || !tab.url) {
+                    chipUse.setAttribute("href", "#icon-search");
+                    els.securityChip.title = "Search";
+                } else if (/^https:/i.test(tab.url)) {
+                    chipUse.setAttribute("href", "#icon-lock");
+                    els.securityChip.title = "Secure";
+                } else {
+                    chipUse.setAttribute("href", "#icon-globe");
+                    els.securityChip.title = "Address";
+                }
+
+                setStatus(tab && tab.url ? tab.url : "Ready");
+            }
+
+            function renderActiveSurface() {
+                const tab = activeTab();
+                const showStart = !tab || !tab.url;
+                els.startPage.hidden = !showStart;
+                els.framePage.hidden = showStart;
+
+                Array.from(els.frameStack.children).forEach(frame => {
+                    frame.classList.toggle("active", tab && frame.id === frameId(tab.id) && !showStart);
+                });
+
+                if (!showStart) {
+                    const frame = document.getElementById(frameId(tab.id));
+                    if (!frame) loadFrame(tab);
+                }
+            }
+
+            function renderShortcuts() {
+                els.shortcutGrid.textContent = "";
+                QUICK_LINKS.forEach(link => {
+                    const button = document.createElement("button");
+                    button.className = "shortcut";
+                    button.type = "button";
+                    button.dataset.url = link.url;
+                    button.title = link.url;
+
+                    const icon = document.createElement("span");
+                    icon.className = "site-icon";
+                    icon.textContent = initials(link.title, link.url);
+
+                    const label = document.createElement("span");
+                    label.textContent = link.title;
+                    button.append(icon, label);
+                    els.shortcutGrid.appendChild(button);
+                });
+            }
+
+            function renderRecent() {
+                els.recentList.textContent = "";
+                const items = historyItems.slice(0, 5);
+                if (!items.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "empty-state";
+                    empty.textContent = "No recent pages";
+                    els.recentList.appendChild(empty);
+                    return;
+                }
+
+                items.forEach(item => {
+                    els.recentList.appendChild(createRow(item, "history"));
+                });
+            }
+
+            function renderPanel() {
+                const isBookmarks = state.panelMode === "bookmarks";
+                els.panelTitle.textContent = isBookmarks ? "Bookmarks" : "History";
+                document.querySelectorAll(".panel-tab").forEach(button => {
+                    button.classList.toggle("active", button.dataset.panelMode === state.panelMode);
+                });
+
+                els.panelList.textContent = "";
+                const rows = isBookmarks ? bookmarks : historyItems;
+                if (!rows.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "empty-state";
+                    empty.textContent = isBookmarks ? "No bookmarks yet" : "No history yet";
+                    els.panelList.appendChild(empty);
+                    return;
+                }
+
+                rows.forEach(item => {
+                    els.panelList.appendChild(createRow(item, isBookmarks ? "bookmark" : "history"));
+                });
+            }
+
+            function createRow(item, kind) {
+                const row = document.createElement("button");
+                row.className = "panel-row";
+                row.type = "button";
+                row.dataset.url = item.url;
+                row.title = item.url;
+
+                const icon = document.createElement("span");
+                icon.className = "site-icon";
+                icon.textContent = initials(item.title, item.url);
+
+                const text = document.createElement("span");
+                text.className = "row-text";
+
+                const title = document.createElement("span");
+                title.className = "row-title";
+                title.textContent = item.title || titleFromUrl(item.url);
+
+                const subtitle = document.createElement("span");
+                subtitle.className = "row-subtitle";
+                subtitle.textContent = kind === "history" && item.time ? relativeTime(item.time) + " - " + item.url : item.url;
+
+                const action = document.createElement("span");
+                action.className = "row-subtitle";
+                action.textContent = kind === "bookmark" ? "Saved" : "";
+
+                text.append(title, subtitle);
+                row.append(icon, text, action);
+                return row;
+            }
+
+            function renderSuggestions(value = els.addressInput.value) {
+                const query = value.trim();
+                if (!query) {
+                    hideSuggestions();
+                    return;
+                }
+
+                const engine = SEARCH_ENGINES[settings.engine] || SEARCH_ENGINES.bing;
+                const matches = [];
+                matches.push({
+                    title: "Search " + engine.label,
+                    subtitle: query,
+                    value: query,
+                    icon: "S"
+                });
+
+                const lower = query.toLowerCase();
+                const seen = new Set();
+                bookmarks.concat(historyItems).forEach(item => {
+                    const haystack = ((item.title || "") + " " + item.url).toLowerCase();
+                    if (!seen.has(item.url) && haystack.includes(lower)) {
+                        matches.push({
+                            title: item.title || titleFromUrl(item.url),
+                            subtitle: item.url,
+                            value: item.url,
+                            icon: initials(item.title, item.url)
+                        });
+                        seen.add(item.url);
+                    }
+                });
+
+                const direct = normalizeInput(query);
+                if (direct && direct.type === "url") {
+                    matches.unshift({
+                        title: titleFromUrl(direct.url),
+                        subtitle: direct.url,
+                        value: direct.url,
+                        icon: initials("", direct.url)
+                    });
+                }
+
+                state.suggestionItems = matches.slice(0, 8);
+                state.activeSuggestion = -1;
+                els.suggestions.textContent = "";
+
+                state.suggestionItems.forEach((item, index) => {
+                    const button = document.createElement("button");
+                    button.className = "suggestion";
+                    button.type = "button";
+                    button.dataset.suggestionIndex = String(index);
+
+                    const icon = document.createElement("span");
+                    icon.className = "site-icon";
+                    icon.textContent = item.icon;
+
+                    const text = document.createElement("span");
+                    const title = document.createElement("span");
+                    title.className = "suggestion-title";
+                    title.textContent = item.title;
+                    const subtitle = document.createElement("span");
+                    subtitle.className = "suggestion-subtitle";
+                    subtitle.textContent = item.subtitle;
+                    text.append(title, subtitle);
+                    button.append(icon, text);
+                    els.suggestions.appendChild(button);
+                });
+
+                els.suggestions.hidden = state.suggestionItems.length === 0;
+            }
+
+            function hideSuggestions() {
+                els.suggestions.hidden = true;
+                state.suggestionItems = [];
+                state.activeSuggestion = -1;
+            }
+
+            function moveSuggestion(direction) {
+                if (els.suggestions.hidden || !state.suggestionItems.length) return;
+                state.activeSuggestion += direction;
+                if (state.activeSuggestion < 0) state.activeSuggestion = state.suggestionItems.length - 1;
+                if (state.activeSuggestion >= state.suggestionItems.length) state.activeSuggestion = 0;
+
+                Array.from(els.suggestions.children).forEach((child, index) => {
+                    child.classList.toggle("active", index === state.activeSuggestion);
+                });
+            }
+
+            function acceptSuggestion() {
+                const item = state.suggestionItems[state.activeSuggestion];
+                if (!item) return false;
+                navigate(state.activeTabId, item.value);
+                return true;
+            }
+
+            function addHistory(entry) {
+                const next = {
+                    title: entry.title || titleFromUrl(entry.url),
+                    url: entry.url,
+                    time: Date.now()
+                };
+                historyItems = [next].concat(historyItems.filter(item => item.url !== next.url)).slice(0, 80);
+                saveJson(STORAGE.history, historyItems);
+            }
+
+            function clearHistory() {
+                historyItems = [];
+                saveJson(STORAGE.history, historyItems);
+                render();
+                setStatus("History cleared");
+            }
+
+            function isBookmarked(url) {
+                return bookmarks.some(item => item.url === url);
+            }
+
+            function toggleBookmark() {
+                const tab = activeTab();
+                if (!tab || !tab.url) return;
+
+                if (isBookmarked(tab.url)) {
+                    bookmarks = bookmarks.filter(item => item.url !== tab.url);
+                    setStatus("Bookmark removed");
+                } else {
+                    bookmarks = [{ title: tab.title || titleFromUrl(tab.url), url: tab.url }].concat(bookmarks).slice(0, 60);
+                    setStatus("Bookmark added");
+                }
+                saveJson(STORAGE.bookmarks, bookmarks);
+                render();
+            }
+
+            function openExternal() {
+                const tab = activeTab();
+                if (!tab || !tab.url) return;
+                window.open(tab.url, "_blank", "noopener");
+            }
+
+            async function copyAddress() {
+                const tab = activeTab();
+                if (!tab || !tab.url) return;
+                try {
+                    await navigator.clipboard.writeText(tab.url);
+                    setStatus("Address copied");
+                } catch (error) {
+                    els.addressInput.focus();
+                    els.addressInput.select();
+                    setStatus("Address selected");
+                }
+            }
+
+            function toggleTheme() {
+                const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+                document.documentElement.dataset.theme = next;
+                settings.theme = next;
+                saveJson(STORAGE.settings, settings);
+                renderThemeButton();
+            }
+
+            function renderThemeButton() {
+                const use = els.themeButton.querySelector("use");
+                const dark = document.documentElement.dataset.theme === "dark";
+                use.setAttribute("href", dark ? "#icon-sun" : "#icon-moon");
+                els.themeButton.title = dark ? "Light theme" : "Dark theme";
+            }
+
+            function setPanel(open, mode = state.panelMode) {
+                state.panelMode = mode;
+                document.body.classList.toggle("panel-open", open);
+                renderPanel();
+                renderNavigationState();
+            }
+
+            function toggleMenu(force) {
+                const open = typeof force === "boolean" ? force : els.menuPopover.hidden;
+                els.menuPopover.hidden = !open;
+            }
+
+            function runCommand(command) {
+                toggleMenu(false);
+                switch (command) {
+                    case "new-tab":
+                        createTab("", { focusAddress: true });
+                        break;
+                    case "duplicate-tab":
+                        duplicateTab();
+                        break;
+                    case "find":
+                        showFind();
+                        break;
+                    case "bookmark":
+                        toggleBookmark();
+                        break;
+                    case "copy-url":
+                        copyAddress();
+                        break;
+                    case "open-external":
+                        openExternal();
+                        break;
+                    case "clear-history":
+                        clearHistory();
+                        break;
+                }
+            }
+
+            function showFind() {
+                els.findBar.hidden = false;
+                window.setTimeout(() => {
+                    els.findInput.focus();
+                    els.findInput.select();
+                }, 0);
+            }
+
+            function hideFind() {
+                els.findBar.hidden = true;
+                els.findInput.value = "";
+            }
+
+            function runFind(backwards = false) {
+                const term = els.findInput.value.trim();
+                if (!term) return;
+
+                const tab = activeTab();
+                const frame = tab && document.getElementById(frameId(tab.id));
+                try {
+                    if (frame && frame.contentWindow && frame.contentWindow.find(term, false, backwards, true, false, false, false)) {
+                        setStatus("Match found");
+                        return;
+                    }
+                } catch (error) {
+                    setStatus("Page search is blocked here");
+                    return;
+                }
+
+                const found = window.find(term, false, backwards, true, false, false, false);
+                setStatus(found ? "Match found" : "No match");
+            }
+
+            function updateClock() {
+                const now = new Date();
+                els.clock.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                els.date.textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+            }
+
+            function titleFromUrl(url) {
+                try {
+                    const parsed = new URL(url);
+                    const query = parsed.searchParams.get("q") || parsed.searchParams.get("query");
+                    if (query && /search|duckduckgo|google|bing/i.test(parsed.hostname)) {
+                        return "Search: " + query;
+                    }
+                    return parsed.hostname.replace(/^www\./, "") || parsed.pathname || url;
+                } catch (error) {
+                    return url || "New Tab";
+                }
+            }
+
+            function initials(title, url) {
+                const source = title && !title.startsWith("Search:") ? title : titleFromUrl(url || "");
+                const cleaned = (source || "Q").replace(/^www\./, "").trim();
+                return cleaned.slice(0, 1).toUpperCase() || "Q";
+            }
+
+            function relativeTime(time) {
+                const diff = Math.max(0, Date.now() - time);
+                const minute = 60 * 1000;
+                const hour = 60 * minute;
+                const day = 24 * hour;
+                if (diff < minute) return "Just now";
+                if (diff < hour) return Math.floor(diff / minute) + " min ago";
+                if (diff < day) return Math.floor(diff / hour) + " hr ago";
+                return Math.floor(diff / day) + " days ago";
+            }
+
+            function showFrameNotice(text) {
+                els.frameNoticeText.textContent = text;
+                els.frameNotice.hidden = false;
+            }
+
+            function hideFrameNotice() {
+                window.clearTimeout(state.frameTimer);
+                els.frameNotice.hidden = true;
+            }
+
+            function setStatus(text) {
+                els.statusText.textContent = text || "Ready";
+            }
+
+            function focusAddress() {
+                window.setTimeout(() => {
+                    els.addressInput.focus();
+                    els.addressInput.select();
+                }, 0);
+            }
+
+            function saveSession() {
+                const session = {
+                    activeTabId: state.activeTabId,
+                    tabs: state.tabs.map(tab => ({
+                        id: tab.id,
+                        title: tab.title,
+                        url: tab.url,
+                        history: tab.history,
+                        historyIndex: tab.historyIndex
+                    }))
+                };
+                saveJson(STORAGE.session, session);
+            }
+
+            function restoreSession() {
+                const session = loadJson(STORAGE.session, null);
+                if (!session || !Array.isArray(session.tabs) || !session.tabs.length) {
+                    createTab("");
+                    return;
+                }
+
+                state.tabs = session.tabs.map(tab => ({
+                    id: tab.id || uid(),
+                    title: tab.title || "New Tab",
+                    url: tab.url || "",
+                    history: Array.isArray(tab.history) ? tab.history : [],
+                    historyIndex: typeof tab.historyIndex === "number" ? tab.historyIndex : -1,
+                    loading: false
+                }));
+                state.activeTabId = state.tabs.some(tab => tab.id === session.activeTabId)
+                    ? session.activeTabId
+                    : state.tabs[0].id;
+                render();
+            }
+
+            els.tabs.addEventListener("click", event => {
+                const target = event.target.closest("[data-tab-action]");
+                if (!target) return;
+                const tabId = target.dataset.tabId;
+                if (target.dataset.tabAction === "close") {
+                    closeTab(tabId);
+                } else {
+                    selectTab(tabId);
+                }
+            });
+
+            els.newTabButton.addEventListener("click", () => createTab("", { focusAddress: true }));
+            els.backButton.addEventListener("click", goBack);
+            els.forwardButton.addEventListener("click", goForward);
+            els.reloadButton.addEventListener("click", reloadActiveTab);
+            els.homeButton.addEventListener("click", () => goHome());
+            els.bookmarkButton.addEventListener("click", toggleBookmark);
+            els.openButton.addEventListener("click", openExternal);
+            els.noticeOpenButton.addEventListener("click", openExternal);
+            els.themeButton.addEventListener("click", toggleTheme);
+            els.panelButton.addEventListener("click", () => {
+                setPanel(!document.body.classList.contains("panel-open"));
+            });
+            els.closePanelButton.addEventListener("click", () => setPanel(false));
+            els.menuButton.addEventListener("click", () => toggleMenu());
+            els.clearRecentButton.addEventListener("click", clearHistory);
+
+            els.toolbarForm.addEventListener("submit", event => {
+                event.preventDefault();
+                navigate(state.activeTabId, els.addressInput.value);
+            });
+
+            els.startForm.addEventListener("submit", event => {
+                event.preventDefault();
+                navigate(state.activeTabId, els.startInput.value);
+                els.startInput.value = "";
+            });
+
+            els.engineSelect.addEventListener("change", () => {
+                settings.engine = els.engineSelect.value;
+                saveJson(STORAGE.settings, settings);
+                renderSuggestions();
+            });
+
+            els.addressInput.addEventListener("input", () => renderSuggestions());
+            els.addressInput.addEventListener("focus", () => renderSuggestions());
+            els.addressInput.addEventListener("keydown", event => {
+                if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    moveSuggestion(1);
+                } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    moveSuggestion(-1);
+                } else if (event.key === "Enter" && state.activeSuggestion >= 0) {
+                    event.preventDefault();
+                    acceptSuggestion();
+                } else if (event.key === "Escape") {
+                    hideSuggestions();
+                }
+            });
+            els.addressInput.addEventListener("blur", () => window.setTimeout(hideSuggestions, 120));
+
+            els.suggestions.addEventListener("click", event => {
+                const button = event.target.closest("[data-suggestion-index]");
+                if (!button) return;
+                const item = state.suggestionItems[Number(button.dataset.suggestionIndex)];
+                if (item) navigate(state.activeTabId, item.value);
+            });
+
+            els.shortcutGrid.addEventListener("click", event => {
+                const shortcut = event.target.closest("[data-url]");
+                if (shortcut) navigate(state.activeTabId, shortcut.dataset.url);
+            });
+
+            els.recentList.addEventListener("click", event => {
+                const row = event.target.closest("[data-url]");
+                if (row) navigate(state.activeTabId, row.dataset.url);
+            });
+
+            els.panelList.addEventListener("click", event => {
+                const row = event.target.closest("[data-url]");
+                if (row) {
+                    navigate(state.activeTabId, row.dataset.url);
+                    setPanel(false);
+                }
+            });
+
+            document.querySelector(".panel-tabs").addEventListener("click", event => {
+                const button = event.target.closest("[data-panel-mode]");
+                if (!button) return;
+                setPanel(true, button.dataset.panelMode);
+            });
+
+            els.menuPopover.addEventListener("click", event => {
+                const item = event.target.closest("[data-command]");
+                if (item) runCommand(item.dataset.command);
+            });
+
+            els.findInput.addEventListener("input", () => runFind(false));
+            els.findInput.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    runFind(event.shiftKey);
+                } else if (event.key === "Escape") {
+                    hideFind();
+                }
+            });
+            els.findPreviousButton.addEventListener("click", () => runFind(true));
+            els.findNextButton.addEventListener("click", () => runFind(false));
+            els.findCloseButton.addEventListener("click", hideFind);
+
+            document.addEventListener("click", event => {
+                if (!els.menuPopover.hidden && !event.target.closest("#menuPopover") && !event.target.closest("#menuButton")) {
+                    toggleMenu(false);
+                }
+            });
+
+            document.addEventListener("keydown", event => {
+                const key = event.key.toLowerCase();
+                const mod = event.ctrlKey || event.metaKey;
+                if (mod && key === "l") {
+                    event.preventDefault();
+                    focusAddress();
+                } else if (mod && key === "t") {
+                    event.preventDefault();
+                    createTab("", { focusAddress: true });
+                } else if (mod && key === "w") {
+                    event.preventDefault();
+                    closeTab(state.activeTabId);
+                } else if (mod && key === "r") {
+                    event.preventDefault();
+                    reloadActiveTab();
+                } else if (mod && key === "d") {
+                    event.preventDefault();
+                    toggleBookmark();
+                } else if (mod && key === "f") {
+                    event.preventDefault();
+                    showFind();
+                } else if (event.altKey && event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    goBack();
+                } else if (event.altKey && event.key === "ArrowRight") {
+                    event.preventDefault();
+                    goForward();
+                } else if (event.key === "Escape") {
+                    hideSuggestions();
+                    toggleMenu(false);
+                    if (document.body.classList.contains("panel-open")) setPanel(false);
+                }
+            });
+
+            updateClock();
+            window.setInterval(updateClock, 1000);
+            restoreSession();
+        })();
+    </script>
+</body>
+</html>
