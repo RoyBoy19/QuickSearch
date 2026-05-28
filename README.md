@@ -17,83 +17,18 @@ QuickSearch Proxy is a lightweight browser-style web app with a Node.js server-s
 
 - Node.js 20.11 or newer
 
-## Run Locally
+## Run on MacOS/Linux
 
-From the repo folder:
+From the repo, run:
 
-```bash
-node server.js
-```
+、、、
+Start QuickSearch.sh
+、、、
 
-Open:
+## Run on Windows
 
-```text
-http://localhost:3000
-```
+From the repo, run:
 
-## Environment Variables
-
-Copy `.env.example` to `.env` for local use, or set these in your deployment host.
-
-```text
-HOST=0.0.0.0
-PORT=3000
-PUBLIC_ORIGIN=https://your-deployed-url.example
-ALLOW_PRIVATE_NETWORKS=false
-MAX_HTML_REWRITE_BYTES=12582912
-MAX_REQUEST_BODY_BYTES=20971520
-MAX_REDIRECTS=8
-SESSION_TTL_MS=21600000
-UPSTREAM_USER_AGENT=
-```
-
-Important settings:
-
-- `PUBLIC_ORIGIN`: set this to your deployed app URL when hosting behind a reverse proxy or platform.
-- `ALLOW_PRIVATE_NETWORKS`: keep this `false` for public deployments. Only use `true` for trusted local testing.
-- `PORT`: many hosts set this automatically.
-
-## Deploy
-
-Deploy this as a Node.js web service. The app is not static-only because `server.js` must run.
-
-Typical start command:
-
-```bash
-node server.js
-```
-
-Set:
-
-```text
-PUBLIC_ORIGIN=https://your-deployed-url.example
-ALLOW_PRIVATE_NETWORKS=false
-```
-
-Good hosting options include Render, Railway, Fly.io, a VPS, or any platform that runs a Node.js HTTP server.
-
-## Docker
-
-Build:
-
-```bash
-docker build -t quicksearch-proxy .
-```
-
-Run:
-
-```bash
-docker run --rm -p 3000:3000 --env-file .env quicksearch-proxy
-```
-
-## Test
-
-Run:
-
-```bash
-node --test
-```
-
-## Notes
-
-QuickSearch Proxy is a practical web proxy, not a full browser engine. Many normal pages, links, assets, forms, fetch calls, and XHR calls will route through the proxy, but some sites may still resist proxying with advanced client-side checks, service workers, DRM, WebSockets, login protections, or bot protection.
+、、、
+Start QuickSearch.cmd
+、、、
