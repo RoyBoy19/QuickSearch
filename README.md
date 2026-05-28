@@ -21,14 +21,14 @@ QuickSearch Proxy is a lightweight browser-style web app with a Node.js server-s
 
 From the repo, run:
 
-、、、
+```bash
 Start QuickSearch.sh
-、、、
+```
 
 ## Run on Windows
 
 From the repo, run:
 
-、、、
+```batch
 Start QuickSearch.cmd
-、、、
+```
