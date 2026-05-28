@@ -19,16 +19,19 @@ QuickSearch Proxy is a lightweight browser-style web app with a Node.js server-s
 
 ## Run on MacOS/Linux
 
-From the repo, run:
+Download the repo and then nagivate to:
 
 ```bash
 Start QuickSearch.sh
 ```
 
+Double-click the file and terminal should automatically open.
+
 ## Run on Windows
 
-From the repo, run:
+Download the repo and then nagivate to:
 
 ```batch
 Start QuickSearch.cmd
 ```
+Double-click the file and Commmand Prompt should automatically open.
